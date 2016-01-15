@@ -19,7 +19,11 @@ var ActionProto = {
             if (action) {
                 return 'Action(' + name + ', ' + String(data.action) + ')';
             } else {
-                return 'Action(' + name + ', ' + String(data) + ')';
+                var dataString = String(data);
+                if (dataString === '[object Object]') {
+                    dataString = JSON.stringify(data);
+                }
+                return 'Action(' + name + ', ' + dataString + ')';
             }
         } else {
             return 'Action(' + name + ')';
@@ -122,6 +126,8 @@ var EffectProto = {
                 return space + effect.stringify('  ' + space, space);
             }).join(',\n');
             return [name + '([', nested, indent + '])'].join('\n');
+        } else {
+            return name + '(' + JSON.stringify(data) + ')';
         }
     },
     toString: function toString() {
@@ -242,15 +248,15 @@ var _zenObservable = require('zen-observable');
 
 var _zenObservable2 = _interopRequireDefault(_zenObservable);
 
-var _Effect = require('./lib/Effect.js');
+var _Effect = require('./Effect.js');
 
-var _Types = require('./lib/Types.js');
+var _Types = require('./Types.js');
 
-var _Result = require('./lib/Result.js');
+var _Result = require('./Result.js');
 
-var _Action = require('./lib/Action.js');
+var _Action = require('./Action.js');
 
-var _perform = require('./lib/perform.js');
+var _perform = require('./perform.js');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -271,13 +277,15 @@ var app = function app(options) {
     var init = _Object$assign.init;
     var update = _Object$assign.update;
     var view = _Object$assign.view;
+    var performer = _Object$assign.performer;
 
+    var perform = (0, _perform.performWith)(performer);
     var next = undefined;
     var actions = new _zenObservable2.default(function (observer) {
         next = observer.next.bind(observer);
     });
     var handleEffect = function handleEffect(effect) {
-        (0, _perform.perform)(effect).then(function (actions) {
+        perform(effect).then(function (actions) {
             actions.forEach(next);
         }).catch(function (error) {
             console.error(error.stack);
@@ -294,8 +302,8 @@ var app = function app(options) {
         var type = action.type;
 
         var result = update(state, action);
-        if (!result[_Result.ResultSymbol]) {
-            throw new Error('Unhandled action type ' + type + ' for action ' + JSON.stringify(action));
+        if (!result || !result[_Result.ResultSymbol]) {
+            throw new Error('Unhandled action type ' + (0, _Types.typeName)(type) + ' for action ' + String(action));
         }
         var nextState = result.state;
         var effect = result.effect;
@@ -320,9 +328,11 @@ _Effect.Effect.app = app;
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.perform = undefined;
+exports.performWith = exports.perform = undefined;
 
 var _Effect = require('./Effect.js');
+
+var _Types = require('./Types.js');
 
 var flatten = function flatten(listOfLists) {
     if (listOfLists.length === 0) {
@@ -336,62 +346,85 @@ var flatten = function flatten(listOfLists) {
         }, []);
     }
 };
-// perform : Effect Action -> Promise (List Action)
+
 var perform = exports.perform = function perform(effect) {
-    var type = effect.type;
-    var data = effect.data;
+    return performWith({});
+};
 
-    return new Promise(function (resolve, reject) {
-        if (type === _Effect.effectTypes.none) {
-            resolve([]); // : Promise (List Action)
-        } else if (type === _Effect.effectTypes.call) {
-                var fn = data.fn;
-                var args = data.args;
+// perform : Effect Action -> Promise (List Action)
+var performWith = exports.performWith = function performWith(performer) {
+    return function (effect) {
+        var perform = performWith(performer);
+        var type = effect.type;
+        var data = effect.data;
 
-                var promise = Promise.resolve(fn.apply(fn, args)).then(function (action) {
-                    return [action];
-                });
-                resolve(promise); // : Promise (List Action)
-            } else if (type === _Effect.effectTypes.then) {
-                    (function () {
-                        var first = data.effect;
-                        var callback = data.callback;
-                        var testing = data.testing;
+        return new Promise(function (resolve, reject) {
+            if (type === _Effect.effectTypes.none) {
+                resolve([]); // : Promise (List Action)
+            } else if (type === _Effect.effectTypes.call) {
+                    var fn = data.fn;
+                    var args = data.args;
 
-                        resolve(perform(first).then(function (actions) {
-                            // List Action
-                            // callback : List Action -> Effect Action
-                            if (actions.length === 0) {
-                                return Promise.resolve([]);
-                            } else if (actions.length > 1) {
-                                var _effect = callback(actions);
-                                return perform(_effect); // : Promise (List Action)
-                            } else if (actions.length === 1) {
-                                    var action = actions[0];
-                                    var _effect2 = callback(action);
-                                    return perform(_effect2);
-                                } else {
-                                    throw new Error('Should not be able to enter here');
-                                }
-                        }));
-                    })();
-                } else if (type === _Effect.effectTypes.all) {
-                    var effects = data.effects;
+                    var promise = Promise.resolve(fn.apply(fn, args)).then(function (action) {
+                        return [action];
+                    });
+                    resolve(promise); // : Promise (List Action)
+                } else if (type === _Effect.effectTypes.then) {
+                        (function () {
+                            var first = data.effect;
+                            var callback = data.callback;
+                            var testing = data.testing;
 
-                    var effs = effects.filter(function (eff) {
-                        return eff.type !== _Effect.effectTypes.none;
-                    }); // List (Effect Action)
-                    if (effs.length === 0) {
-                        resolve([]); // : Promise (List Action)
+                            resolve(perform(first).then(function (actions) {
+                                // List Action
+                                // callback : List Action -> Effect Action
+                                if (actions.length === 0) {
+                                    return Promise.resolve([]);
+                                } else if (actions.length > 1) {
+                                    var _effect = callback(actions);
+                                    return perform(_effect); // : Promise (List Action)
+                                } else if (actions.length === 1) {
+                                        var action = actions[0];
+                                        var _effect2 = callback(action);
+                                        return perform(_effect2);
+                                    } else {
+                                        throw new Error('Should not be able to enter here');
+                                    }
+                            }));
+                        })();
+                    } else if (type === _Effect.effectTypes.all) {
+                        var effects = data.effects;
+
+                        var effs = effects.filter(function (eff) {
+                            return eff.type !== _Effect.effectTypes.none;
+                        }); // List (Effect Action)
+                        if (effs.length === 0) {
+                            resolve([]); // : Promise (List Action)
+                        } else {
+                                resolve(Promise.all(effs.map(perform)) // (Promise (List (List Action)))
+                                .then(flatten) // Promise (List Action)
+                                );
+                            }
                     } else {
-                            resolve(Promise.all(effs.map(perform)) // (Promise (List (List Action)))
-                            .then(flatten) // Promise (List Action)
-                            );
+                            var effectPerformer = performer.matcher(effect);
+                            if (!effectPerformer) {
+                                var name = (0, _Types.typeName)(type);
+                                reject(new Error('No performer for type ' + name + ', ' + String(effect)));
+                            } else {
+                                var promise = Promise.resolve(effectPerformer(effect)).then(function (actions) {
+                                    if (!Array.isArray(actions)) {
+                                        return [actions];
+                                    } else {
+                                        return actions;
+                                    }
+                                });
+                                resolve(promise);
+                            }
                         }
-                }
-    }).then(function (actions) {
-        return actions;
-    });
+        }).then(function (actions) {
+            return actions;
+        });
+    };
 };
 
 //# sourceMappingURL=effect.js.map

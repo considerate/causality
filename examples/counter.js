@@ -9,10 +9,11 @@ const {increment, incrementLater, incrementBy} = types;
 const waitAndInc = (ms) => delay(ms).then(() => Action(types.increment));
 const incLater = ms => Effect.all(
     [
-        Effect.call(waitAndInc, ms),
+        Effect.call(waitAndInc, ms*2), // : Effect Action
         Effect.call(waitAndInc, ms)
     ]
-).map(actions => {
+) // : Effect (List Action)
+.map(actions => { // List Action -> Action
     const count = actions.length;
     return Action(types.incrementBy, count);
 });
@@ -23,10 +24,11 @@ export const update = (state, action) => {
         return Result(state+1);
     }
     else if(type === incrementLater) {
-        return Result(state, incLater(1000));
+        const effect = incLater(100);
+        return Result(state, effect);
     }
     else if(type === incrementBy) {
         return Result(state+data);
     }
 };
-export const init = () => 0;
+export const init = () => Result(0, Effect.call(waitAndInc, 3000));

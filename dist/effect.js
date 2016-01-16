@@ -52,7 +52,7 @@ var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.Effect = exports.effectTypes = undefined;
+exports.Effect = exports.effectTypes = exports.SideEffect = undefined;
 
 var _Types = require('./Types.js');
 
@@ -60,7 +60,7 @@ var _perform = require('./perform.js');
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
-var SideEffect = Symbol('SideEffect');
+var SideEffect = exports.SideEffect = Symbol('SideEffect');
 
 var effectTypes = exports.effectTypes = (0, _Types.Types)('none', 'call', 'then', 'all');
 
@@ -140,6 +140,7 @@ var Effect = exports.Effect = function Effect(type, data) {
     var effect = Object.create(EffectProto);
     return Object.assign(effect, (_Object$assign = {}, _defineProperty(_Object$assign, SideEffect, true), _defineProperty(_Object$assign, 'type', type), _defineProperty(_Object$assign, 'data', data), _Object$assign));
 };
+Effect.types = effectTypes;
 Effect.call = call;
 var none = Effect(effectTypes.none);
 Effect.none = none;
@@ -242,7 +243,7 @@ var Types = exports.Types = function Types() {
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.Action = exports.Result = exports.Types = exports.Effect = undefined;
+exports.testEffects = exports.performWith = exports.testPerformer = exports.basePerformer = exports.SideEffect = exports.Action = exports.Result = exports.Types = exports.Effect = undefined;
 
 var _zenObservable = require('zen-observable');
 
@@ -258,12 +259,19 @@ var _Action = require('./Action.js');
 
 var _perform = require('./perform.js');
 
+var _test = require('./test.js');
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 exports.Effect = _Effect.Effect;
 exports.Types = _Types.Types;
 exports.Result = _Result.Result;
 exports.Action = _Action.Action;
+exports.SideEffect = _Effect.SideEffect;
+exports.basePerformer = _perform.basePerformer;
+exports.testPerformer = _perform.testPerformer;
+exports.performWith = _perform.performWith;
+exports.testEffects = _test.testEffects;
 
 var noop = function noop() {};
 
@@ -277,8 +285,10 @@ var app = function app(options) {
     var init = _Object$assign.init;
     var update = _Object$assign.update;
     var view = _Object$assign.view;
-    var performer = _Object$assign.performer;
+    var customPerformer = _Object$assign.performer;
 
+    var base = (0, _perform.basePerformer)();
+    var performer = Object.assign({}, base, customPerformer);
     var perform = (0, _perform.performWith)(performer);
     var next = undefined;
     var actions = new _zenObservable2.default(function (observer) {
@@ -325,14 +335,18 @@ var app = function app(options) {
 _Effect.Effect.app = app;
 'use strict';
 
+var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; })();
+
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-exports.performWith = exports.perform = undefined;
+exports.performWith = exports.perform = exports.testPerformer = exports.basePerformer = undefined;
+
+var _Types = require('./Types.js');
 
 var _Effect = require('./Effect.js');
 
-var _Types = require('./Types.js');
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 var flatten = function flatten(listOfLists) {
     if (listOfLists.length === 0) {
@@ -347,8 +361,131 @@ var flatten = function flatten(listOfLists) {
     }
 };
 
+var basePerformer = exports.basePerformer = function basePerformer() {
+    var _ref;
+
+    var call = _Effect.effectTypes.call;
+    var none = _Effect.effectTypes.none;
+    var then = _Effect.effectTypes.then;
+    var all = _Effect.effectTypes.all;
+
+    return _ref = {}, _defineProperty(_ref, none, function (effect, perform) {
+        return [];
+    }), _defineProperty(_ref, then, function (effect, perform) {
+        var data = effect.data;
+        var first = data.effect;
+        var callback = data.callback;
+        var testing = data.testing;
+
+        return perform(first).then(function (actions) {
+            // List Action
+            // callback : List Action -> Effect Action
+            if (actions.length === 0) {
+                return Promise.resolve([]);
+            } else if (actions.length > 1) {
+                var _effect = callback(actions);
+                return perform(_effect); // : Promise (List Action)
+            } else if (actions.length === 1) {
+                    var action = actions[0];
+                    var _effect2 = callback(action);
+                    return perform(_effect2);
+                } else {
+                    throw new Error('Should not be able to enter here');
+                }
+        });
+    }), _defineProperty(_ref, all, function (effect, perform) {
+        var data = effect.data;
+        var effects = data.effects;
+
+        var effs = effects.filter(function (eff) {
+            return eff.type !== _Effect.effectTypes.none;
+        }); // List (Effect Action)
+        if (effs.length === 0) {
+            return []; // : Promise (List Action)
+        } else {
+                return Promise.all(effs.map(perform)) // (Promise (List (List Action)))
+                .then(flatten); // Promise (List Action)
+            }
+    }), _defineProperty(_ref, call, function (effect) {
+        var data = effect.data;
+        var fn = data.fn;
+        var args = data.args;
+
+        return Promise.resolve(fn.apply(fn, args)).then(function (action) {
+            return [action];
+        });
+    }), _ref;
+};
+
+// The test performer applies effects using the callbacks in the test effect
+// to both the test effect and the production effect and asserts that the types are equal for all.
+var testPerformer = exports.testPerformer = function testPerformer(otherEffect, assert) {
+    var _ref4;
+
+    var call = _Effect.effectTypes.call;
+    var none = _Effect.effectTypes.none;
+    var then = _Effect.effectTypes.then;
+    var all = _Effect.effectTypes.all;
+
+    return _ref4 = {}, _defineProperty(_ref4, none, function (effect) {
+        assert.equal(otherEffect.type, none);
+    }), _defineProperty(_ref4, then, function (effect) {
+        assert.equal(otherEffect.type, then);
+        var otherFirst = otherEffect.data.effect;
+
+        var perform = performWith(testPerformer(otherFirst, assert));
+        var data = effect.data;
+        var first = data.effect;
+        var testing = data.testing;
+
+        var callback = otherEffect.data.callback;
+        return Promise.all([perform(first), perform(otherFirst)]).then(function (_ref2) {
+            var _ref3 = _slicedToArray(_ref2, 2);
+
+            var actions = _ref3[0];
+            var oa = _ref3[1];
+
+            if (actions.length === 0) {
+                return [];
+            } else if (actions.length > 1) {
+                var _otherEffect = callback(oa);
+                var _perform = performWith(testPerformer(_otherEffect, assert));
+                var _effect3 = callback(actions);
+                return _perform(_effect3);
+            } else if (actions.length === 1) {
+                var _otherEffect2 = callback(oa[0]);
+                var _perform2 = performWith(testPerformer(_otherEffect2, assert));
+                var action = actions[0];
+                var _effect4 = callback(action);
+                return _perform2(_effect4);
+            } else {
+                throw new Error('Should not be able to enter here');
+            }
+        });
+    }), _defineProperty(_ref4, all, function (effect) {
+        assert.equal(otherEffect.type, all);
+        var data = effect.data;
+        var effects = data.effects;
+
+        var otherEffects = otherEffect.data.effects;
+        return Promise.all(effects.map(function (effect, i) {
+            var other = otherEffects[i];
+            var perform = performWith(testPerformer(other, assert));
+            return perform(effect);
+        })).then(flatten);
+    }), _defineProperty(_ref4, call, function (effect) {
+        var data = effect.data;
+        var args = data.args;
+
+        var fn = otherEffect.data.fn;
+        return Promise.resolve(fn.apply(fn, args)).then(function (action) {
+            return [action];
+        });
+    }), _ref4;
+};
+
 var perform = exports.perform = function perform(effect) {
-    return performWith({});
+    return performWith(basePerformer);
 };
 
 // perform : Effect Action -> Promise (List Action)
@@ -358,71 +495,61 @@ var performWith = exports.performWith = function performWith(performer) {
         var type = effect.type;
         var data = effect.data;
 
-        return new Promise(function (resolve, reject) {
-            if (type === _Effect.effectTypes.none) {
-                resolve([]); // : Promise (List Action)
-            } else if (type === _Effect.effectTypes.call) {
-                    var fn = data.fn;
-                    var args = data.args;
-
-                    var promise = Promise.resolve(fn.apply(fn, args)).then(function (action) {
-                        return [action];
-                    });
-                    resolve(promise); // : Promise (List Action)
-                } else if (type === _Effect.effectTypes.then) {
-                        (function () {
-                            var first = data.effect;
-                            var callback = data.callback;
-                            var testing = data.testing;
-
-                            resolve(perform(first).then(function (actions) {
-                                // List Action
-                                // callback : List Action -> Effect Action
-                                if (actions.length === 0) {
-                                    return Promise.resolve([]);
-                                } else if (actions.length > 1) {
-                                    var _effect = callback(actions);
-                                    return perform(_effect); // : Promise (List Action)
-                                } else if (actions.length === 1) {
-                                        var action = actions[0];
-                                        var _effect2 = callback(action);
-                                        return perform(_effect2);
-                                    } else {
-                                        throw new Error('Should not be able to enter here');
-                                    }
-                            }));
-                        })();
-                    } else if (type === _Effect.effectTypes.all) {
-                        var effects = data.effects;
-
-                        var effs = effects.filter(function (eff) {
-                            return eff.type !== _Effect.effectTypes.none;
-                        }); // List (Effect Action)
-                        if (effs.length === 0) {
-                            resolve([]); // : Promise (List Action)
-                        } else {
-                                resolve(Promise.all(effs.map(perform)) // (Promise (List (List Action)))
-                                .then(flatten) // Promise (List Action)
-                                );
-                            }
+        var effectPerformer = performer[type];
+        return Promise.resolve().then(function () {
+            if (!effectPerformer) {
+                var name = (0, _Types.typeName)(type);
+                throw new Error('No performer for type ' + name + ', ' + String(effect));
+            } else {
+                return Promise.resolve(effectPerformer(effect, perform)).then(function (actions) {
+                    if (!Array.isArray(actions)) {
+                        return [actions];
                     } else {
-                            var effectPerformer = performer.matcher(effect);
-                            if (!effectPerformer) {
-                                var name = (0, _Types.typeName)(type);
-                                reject(new Error('No performer for type ' + name + ', ' + String(effect)));
-                            } else {
-                                var promise = Promise.resolve(effectPerformer(effect)).then(function (actions) {
-                                    if (!Array.isArray(actions)) {
-                                        return [actions];
-                                    } else {
-                                        return actions;
-                                    }
-                                });
-                                resolve(promise);
-                            }
-                        }
-        }).then(function (actions) {
-            return actions;
+                        return actions;
+                    }
+                });
+            };
+        });
+    };
+};
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.testEffects = undefined;
+
+var _ = require('..');
+
+var effectEqual = function effectEqual(assert, a, b) {
+    assert(a[_.SideEffect], String(a));
+    assert(b[_.SideEffect]);
+    assert.equal(a.type, b.type);
+    var performer = (0, _.testPerformer)(b, assert);
+    var perform = (0, _.performWith)(performer);
+    return perform(a);
+};
+
+var testEffects = exports.testEffects = function testEffects(fn, assert) {
+    return function (_ref) {
+        var action = _ref.action;
+        var before = _ref.state;
+        var _ref$expected = _ref.expected;
+        var expectedState = _ref$expected.state;
+        var _ref$expected$effect = _ref$expected.effect;
+        var expectedEffect = _ref$expected$effect === undefined ? _.Effect.none : _ref$expected$effect;
+        var _ref$expected$actions = _ref$expected.actions;
+        var expectedActions = _ref$expected$actions === undefined ? [] : _ref$expected$actions;
+
+        var result = fn(before, action);
+        var state = result.state;
+        var effect = result.effect;
+
+        assert.equal(state, expectedState);
+        return effectEqual(assert, effect, expectedEffect).then(function (actions) {
+            actions.map(function (action, i) {
+                assert.equal(String(action), String(expectedActions[i]));
+            });
         });
     };
 };

@@ -9,11 +9,11 @@ const {increment, incrementLater, incrementBy} = types;
 const waitAndInc = (ms) => delay(ms).then(() => Action(types.increment));
 const incLater = ms => Effect.all(
     [
-        Effect.call(waitAndInc, ms*2), // : Effect Action
+        Effect.call(waitAndInc, ms*2),
         Effect.call(waitAndInc, ms)
     ]
-) // : Effect (List Action)
-.map(actions => { // List Action -> Action
+)
+.map(actions => {
     const count = actions.length;
     return Action(types.incrementBy, count);
 });

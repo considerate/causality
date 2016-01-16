@@ -4,7 +4,7 @@ Declarative and testable side-effects in JavaScript.
 ## Example Implementation
 
 ```js
-import {Action, Result, Effect, Types} from '..';
+import {Action, Result, Effect, Types} from 'effect.js';
 
 const delay = ms => new Promise(resolve => {
     setTimeout(resolve, ms);
@@ -15,11 +15,11 @@ const {increment, incrementLater, incrementBy} = types;
 const waitAndInc = (ms) => delay(ms).then(() => Action(types.increment));
 const incLater = ms => Effect.all(
     [
-        Effect.call(waitAndInc, ms*2), // : Effect Action
+        Effect.call(waitAndInc, ms*2),
         Effect.call(waitAndInc, ms)
     ]
-) // : Effect (List Action)
-.map(actions => { // List Action -> Action
+)
+.map(actions => {
     const count = actions.length;
     return Action(types.incrementBy, count);
 });
@@ -45,7 +45,7 @@ export const init = () => Result(0, Effect.call(waitAndInc, 3000));
 ## Example Tests
 
 ```js
-import {Effect, SideEffect, Action, testEffects} from '../..';
+import {Effect, SideEffect, Action, testEffects} from 'effect.js';
 import {update, init, types} from '../counter.js';
 const assert = require('assert');
 
@@ -85,7 +85,7 @@ describe('Counter', () => {
             state: 4,
             effect: Effect.all([
                 Effect.call((ms) => ms, 200),
-                    Effect.call((ms) => ms, 100),
+                Effect.call((ms) => ms, 100),
             ]).map((actions) => {
                 return Action(incrementBy, actions.length);
             }),
@@ -99,6 +99,5 @@ describe('Counter', () => {
     });
 
 });
-
 
 ```

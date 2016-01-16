@@ -38,7 +38,7 @@ describe('Counter', () => {
             state: 4,
             effect: Effect.all([
                 Effect.call((ms) => ms, 200),
-                    Effect.call((ms) => ms, 100),
+                Effect.call((ms) => ms, 100),
             ]).map((actions) => {
                 return Action(incrementBy, actions.length);
             }),

@@ -31,4 +31,6 @@ export const update = (state, action) => {
         return Result(state+data);
     }
 };
+
 export const init = () => Result(0, Effect.call(waitAndInc, 3000));
+

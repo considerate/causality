@@ -63,18 +63,11 @@ const view = (state) => {
     console.log(state);
 };
 
-
 const performer = {
-    matcher(effect) {
-        if(effect.type === effectTypes.request) {
-            return this.request;
-        }
-    },
-    request: (effect) => {
+    [effectTypes.request]: (effect) => {
         const {data} = effect;
-        const {method, url, headers: h} = data;
-        const headers = Object.assign(h || {}, {method});
-        return fetch(url, headers)
+        const {method, url, headers} = data;
+        return fetch(url, {headers, method})
         .then(response => {
             if(response.status >= 400 && response.status < 600) {
                 return [Action(error, {

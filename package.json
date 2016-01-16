@@ -4,7 +4,7 @@
   "description": "Composable Side-Effects for JavaScript",
   "main": "lib/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "mocha --compilers js:babel-register examples/tests",
     "compress": "./node_modules/uglify-js/bin/uglifyjs dist/effect.js --in-source-map dist/effect.js.map --compress --mangle --output dist/effect.js.min --source-map dist/effect.js.min.map",
     "transpile": "babel lib --out-file dist/effect.js --source-maps",
     "build": "npm run transpile && npm run compress"
@@ -17,6 +17,7 @@
     "zen-observable": "^0.1.9"
   },
   "devDependencies": {
+    "babel-register": "^6.4.3",
     "uglify-js": "^2.6.1"
   }
 }

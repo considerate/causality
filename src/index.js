@@ -15,13 +15,16 @@ const app = (options) => {
     const defaults = {
         view: noop
     };
-    const {init, update, view, performer: customPerformer} = Object.assign(defaults, options);
+    const {init, update, view, performer: customPerformer, inputs, onView} = Object.assign(defaults, options);
     const base = basePerformer();
     const performer = Object.assign({},base,customPerformer);
     const perform = performWith(performer);
     let next;
     const actions = new Observable(observer => {
         next = observer.next.bind(observer);
+        if(inputs && typeof inputs.forEach === 'function') {
+            inputs.forEach(next);
+        }
     });
     const handleEffect = (effect) => {
         perform(effect)
@@ -32,11 +35,6 @@ const app = (options) => {
             console.error(error.stack);
         });
     };
-    const result = init();
-    // console.log(String(result));
-    let {state, effect} = result;
-    view(state);
-    handleEffect(effect);
     actions.forEach(action => {
         const {type} = action;
         const result = update(state, action);
@@ -44,20 +42,28 @@ const app = (options) => {
             throw new Error(`Unhandled action type ${typeName(type)} for action ${String(action)}`);
         }
         const {state: nextState, effect} = result;
-        // console.log(String(result));
         state = nextState;
         if(effect.type !== effectTypes.none) {
             handleEffect(effect);
         }
-        view(state);
+        const rendered = view(state, next);
+        if(typeof onView === 'function') {
+            onView(rendered);
+        }
     })
     .catch(error => {
         console.error(error);
         console.error(error.stack);
     });
+
+    const result = init();
+    let {state, effect} = result;
+    const initialView = view(state, next);
+    handleEffect(effect);
+
     return {
-        next
+        initialView,
     };
-}
+};
 Effect.app = app;
 

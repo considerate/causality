@@ -1,6 +1,7 @@
 const assert = require('assert');
+import Observable from 'zen-observable';
 import fetch from 'node-fetch';
-import {Effect, Types, Result, Action, perform} from '..';
+import {Effect, Types, Result, Action, perform} from '../src/index.js';
 import {update as updateCounter, init as initCounter, types} from './counter.js';
 
 const actionTypes = Types('left', 'right', 'response', 'error');
@@ -94,10 +95,14 @@ const performer = {
     },
 };
 
-const main = Effect.app({init, update, view, performer});
 const {increment, incrementLater} = types;
-main.next(Left(Action(increment)));
-main.next(Right(Action(increment)));
-main.next(Left(Action(increment)));
-const act = Left(Action(incrementLater));
-main.next(act);
+const inputs = Observable.from(
+    [
+        Left(Action(increment)),
+        Right(Action(increment)),
+        Left(Action(increment)),
+        Left(Action(incrementLater))
+    ]
+);
+
+Effect.app({init, update, view, performer, inputs});

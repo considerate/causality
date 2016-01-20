@@ -1,22 +1,20 @@
 {
-  "name": "effect.js",
+  "name": "effect",
   "version": "0.0.1",
   "description": "Composable Side-Effects for JavaScript",
   "main": "lib/index.js",
   "scripts": {
     "test": "mocha --compilers js:babel-register examples/tests",
-    "compress": "./node_modules/uglify-js/bin/uglifyjs dist/effect.js --in-source-map dist/effect.js.map --compress --mangle --output dist/effect.js.min --source-map dist/effect.js.min.map",
-    "transpile": "babel lib --out-file dist/effect.js --source-maps",
-    "build": "npm run transpile && npm run compress"
+    "compile": "babel --optional runtime -d lib/ src/",
+    "prepublish": "npm run compile"
   },
   "author": "Viktor Kronvall",
   "license": "MIT",
   "dependencies": {
-    "node-fetch": "^1.3.3",
-    "whatwg-fetch": "^0.10.1",
     "zen-observable": "^0.1.9"
   },
   "devDependencies": {
+    "node-fetch": "^1.3.3",
     "babel-register": "^6.4.3",
     "uglify-js": "^2.6.1"
   }

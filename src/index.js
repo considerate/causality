@@ -5,9 +5,9 @@ import {Result, ResultSymbol} from './Result.js';
 import {Action} from './Action.js';
 import {performWith, basePerformer, testPerformer} from './perform.js';
 
-import {testEffects} from './test.js';
+// import {testEffects} from './test.js';
 
-export {Effect, Types, Result, Action, SideEffect, basePerformer, testPerformer, performWith, testEffects};
+export {Effect, Types, Result, Action, SideEffect, basePerformer, testPerformer, performWith};
 
 const noop = () => {};
 const nextTick = (f) => setTimeout(f, 0);

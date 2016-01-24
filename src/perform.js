@@ -53,7 +53,14 @@ export const basePerformer = () => {
             const {data} = effect;
             const {fn, args} = data;
             return Promise.resolve(fn.apply(fn,args))
-            .then(action => [action]);
+            .then(action => {
+                if(!Array.isArray(action)) {
+                    return [action];
+                } else {
+                    const actions = action; // Multiple actions returned
+                    return actions;
+                }
+            });
         },
     };
 };
@@ -112,7 +119,12 @@ export const testPerformer = (otherEffect, assert) => {
             const fn = otherEffect.data.fn;
             return Promise.resolve(fn.apply(fn,args))
             .then(action => {
-                return [action];
+                if(!Array.isArray(action)) {
+                    return [action];
+                } else {
+                    const actions = action; // Multiple actions returned
+                    return actions;
+                }
             });
         }
     };

@@ -15,7 +15,7 @@ const incLater = ms => Effect.all(
 )
 .map(actions => {
     const count = actions.length;
-    return Action(types.incrementBy, count);
+    return [Action(types.incrementBy, count)];
 });
 
 export const update = (state, action) => {

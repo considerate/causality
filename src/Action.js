@@ -21,9 +21,14 @@ const ActionProto = {
 };
 export const Action = (type, data) => {
     const action = Object.create(ActionProto);
-    return Object.assign(action,{type, data});
+    action.type = type;
+    action.data = data;
+    return action;
 };
-const wrap = (type, data) => action => Action(type, Object.assign(data || {}, {action}));
+const wrap = (type, data={}) => action => {
+    data.action = action;
+    return Action(type, data);
+};
 const unwrap = ({data:{action}}) => action;
 const to = (next,type,data) => action => next(wrap(type,data)(action));
 Action.to = to;

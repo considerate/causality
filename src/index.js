@@ -5,13 +5,12 @@ import {Result, ResultSymbol} from './Result.js';
 import {Action} from './Action.js';
 import {performWith, basePerformer, testPerformer} from './perform.js';
 
-// import {testEffects} from './test.js';
+import {testEffects} from './test.js';
 
-export {Effect, Types, Result, Action, SideEffect, basePerformer, testPerformer, performWith};
+export {Effect, Types, Result, Action, SideEffect, basePerformer, testPerformer, performWith, testEffects};
 
 const noop = () => {};
 const nextTick = (f) => setTimeout(f, 0);
-
 
 const app = (options) => {
     const defaults = {
@@ -47,25 +46,32 @@ const app = (options) => {
                     inputs.forEach(next);
                 }
             });
-            const handleEffect = (effect) => {
-                perform(effect)
+            const handleEffect = (effect, action) => {
+                return perform(effect)
                 .then(actions => {
                     actions.forEach(next);
                 })
                 .catch(error => {
-                    console.error(error.stack);
+                    if(action && action.type === 'error') {
+                        //Avoid stack-overflows
+                    } else {
+                        next(Action('error', {error,effect,action}));
+                    }
                 });
             };
             actions.forEach(action => {
                 const {type} = action;
                 const result = update(state, action);
-                if(!result || !result[ResultSymbol]) {
-                    throw new Error(`Unhandled action type ${typeName(type)} for action ${String(action)}`);
+                if(!result || result.state === undefined) {
+                    const error = new Error(`Unhandled action type ${typeName(type)} for action ${String(action)}`);
+                    if(action.type !== 'error') {
+                        next(Action('error', {error}));
+                    }
                 }
                 const {state: nextState, effect} = result;
                 state = nextState;
-                if(effect.type !== effectTypes.none) {
-                    handleEffect(effect);
+                if(effect && effect.type !== effectTypes.none) {
+                    handleEffect(effect,action);
                 }
                 const rendered = view(state, next);
                 viewListeners.forEach(handler => handler(rendered, next));

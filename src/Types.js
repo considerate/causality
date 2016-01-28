@@ -2,7 +2,7 @@ export const typeName = type => typeof type === 'symbol' ? Symbol.keyFor(type) :
 
 export const Types = (...list) => {
     return list.reduce((obj, type) => {
-        obj[type] = Symbol.for(type);
+        obj[type] = type;//Symbol.for(type);
         return obj;
     },{});
 };

@@ -16,7 +16,10 @@ const ResultProto = {
 };
 export const Result = (state, effect=Effect.none) => {
     const result = Object.create(ResultProto);
-    return Object.assign(result,{state, effect, [ResultSymbol]: true});
+    result.state = state;
+    result.effect = effect;
+    result[ResultSymbol] = true;
+    return result;
 };
 Result.all = (results) => {
     const states = [];

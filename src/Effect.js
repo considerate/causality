@@ -13,7 +13,16 @@ const call = (fn, ...args) => {
     };
     return Effect(type, data);
 };
-const EffectProto = {
+
+export const Effect = (type, data) => {
+    const effect = Object.create(EffectProto);
+    effect.type = type;
+    effect.data = data;
+    effect[SideEffect] = true;
+    return effect;
+};
+
+var EffectProto = {
     then(fn) {
         const {type, data} = this;
         return Effect(
@@ -28,9 +37,10 @@ const EffectProto = {
         if(this.type === effectTypes.none) {
             return Effect.none;
         }
-        return this.then(function map(a) {
-            return call(fn, a);
+        const result = this.then(function map(x) {
+            return call(fn, x);
         });
+        return result;
     },
     stringify(space='  ', indent='') {
         const {type, data} = this;
@@ -77,16 +87,9 @@ const EffectProto = {
         return this.stringify();
     }
 };
-export const Effect = (type, data) => {
-    const effect = Object.create(EffectProto);
-    return Object.assign(effect, {
-        [SideEffect]: true,
-        type,
-        data,
-    });
-};
 Effect.types = effectTypes;
 Effect.call = call;
+
 const none = Effect(effectTypes.none);
 Effect.none = none;
 

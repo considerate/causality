@@ -39,10 +39,10 @@ describe('Counter', () => {
             effect: Effect.all([
                 Effect.call((ms) => ms, 200),
                 Effect.call((ms) => ms, 100),
-            ]).map((actions) => {
-                return Action(incrementBy, actions.length);
+            ]).map((action) => {
+                return Action(incrementBy, 1);
             }),
-            actions: [Action(incrementBy,2)],
+            actions: [Action(incrementBy,1), Action(incrementBy,1)],
         };
         return testEffects(update, assert)({
             action: Action(incrementLater, 100),

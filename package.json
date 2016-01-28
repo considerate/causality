@@ -1,12 +1,12 @@
 {
   "name": "effectjs",
-  "version": "0.0.4-alpha3",
+  "version": "0.0.5",
   "description": "Composable Side-Effects for JavaScript",
   "main": "lib/index.js",
   "scripts": {
     "test": "mocha --compilers js:babel-register examples/tests",
     "compile": "babel --optional runtime -d lib/ src/",
-    "prepublish": "npm run compile"
+    "prepublish": "npm run compile && npm test"
   },
   "author": "Viktor Kronvall",
   "license": "MIT",

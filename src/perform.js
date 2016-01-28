@@ -12,9 +12,11 @@ const flatten = (listOfLists) => {
     }
 };
 
+const defined = (x) => x !== undefined && x !== null;
+
 export const basePerformer = () => {
     const {call, none, then, all} = effectTypes;
-    return {
+    const performer = {
         [none]: (effect, perform) => {
             return [];
         },
@@ -22,26 +24,19 @@ export const basePerformer = () => {
             const {data} = effect;
             const {effect: first, callback, testing} = data;
             return perform(first).then(actions => { // List Action
-                // callback : List Action -> Effect Action
-                if(actions.length === 0) {
-                    return Promise.resolve([]);
-                }
-                else if(actions.length > 1) {
-                    const effect = callback(actions);
-                    return perform(effect); // : Promise (List Action)
-                } else if(actions.length === 1) {
-                    const action = actions[0];
-                    const effect = callback(action);
-                    return perform(effect);
-                } else {
-                    throw new Error('Should not be able to enter here');
-                }
+                return Promise.all(
+                    actions.filter(defined).map(action => {
+                        const effect = callback(action);
+                        return perform(effect); // Promise (List Action)
+                    }) // List (Promise (List Action))
+                ) // Promise (List (List Action))
+                .then(flatten); //Promise (List Action)
             });
         },
         [all]: (effect, perform) => {
             const {data} = effect;
             const {effects}  = data;
-            const effs = effects.filter(eff => eff.type !== effectTypes.none); // List (Effect Action)
+            const effs = effects.filter(eff => defined(eff) && eff.type !== effectTypes.none); // List (Effect Action)
             if(effs.length === 0) {
                 return []; // : Promise (List Action)
             } else {
@@ -55,14 +50,22 @@ export const basePerformer = () => {
             return Promise.resolve(fn.apply(fn,args))
             .then(action => {
                 if(!Array.isArray(action)) {
-                    return [action];
+                    if(action) {
+                        return [action];
+                    } else {
+                        return [];
+                    }
                 } else {
                     const actions = action; // Multiple actions returned
-                    return actions;
+                    return actions.filter(defined);
                 }
-            });
+            })
+            .catch(error => {
+                console.error('Error in effect', String(effect), 'fn is undefined');
+            })
         },
     };
+    return performer;
 };
 
 // The test performer applies effects using the callbacks in the test effect
@@ -72,6 +75,7 @@ export const testPerformer = (otherEffect, assert) => {
     return {
         [none]: (effect) => {
             assert.equal(otherEffect.type, none);
+            return [];
         },
         [then]: (effect) => {
             assert.equal(otherEffect.type, then);
@@ -81,24 +85,15 @@ export const testPerformer = (otherEffect, assert) => {
             const {effect: first, testing} = data;
             const callback = otherEffect.data.callback;
             return Promise.all([perform(first), perform(otherFirst)])
-            .then(([actions, oa]) => {
-                if(actions.length === 0) {
-                    return [];
-                }
-                else if(actions.length > 1) {
-                    const otherEffect = callback(oa);
-                    const perform = performWith(testPerformer(otherEffect, assert));
-                    const effect = callback(actions);
-                    return perform(effect);
-                } else if(actions.length === 1) {
-                    const otherEffect = callback(oa[0]);
-                    const perform = performWith(testPerformer(otherEffect, assert));
-                    const action = actions[0];
+            .then(([actions, otherActions]) => {
+                return Promise.all(actions.map((action,i) => {
+                    const otherAction = otherActions[i];
+                    const otherEffect = callback(otherAction);
                     const effect = callback(action);
+                    const perform = performWith(testPerformer(otherEffect, assert));
                     return perform(effect);
-                } else {
-                    throw new Error('Should not be able to enter here');
-                }
+                }))
+                .then(flatten);
             });
         },
         [all]: (effect) => {
@@ -106,8 +101,8 @@ export const testPerformer = (otherEffect, assert) => {
             const {data} = effect;
             const {effects}  = data;
             const otherEffects = otherEffect.data.effects;
-            return Promise.all(effects.map((effect,i) => {
-                const other = otherEffects[i];
+            return Promise.all(effects.filter(defined).map((effect,i) => {
+                const other = otherEffects.filter(defined)[i];
                 const perform = performWith(testPerformer(other, assert));
                 return perform(effect);
             }))
@@ -139,19 +134,17 @@ export const performWith = performer => (effect) => {
     const perform = performWith(performer);
     const {type, data} = effect;
     const effectPerformer = performer[type];
-    return Promise.resolve().then(() => {
-        if(!effectPerformer) {
-            const name = typeName(type);
-            throw new Error(`No performer for type ${name}, ${String(effect)}`);
-        } else {
-            return Promise.resolve(effectPerformer(effect, perform))
-            .then(actions => {
-                if(!Array.isArray(actions)) {
-                    return [actions];
-                } else {
-                    return actions;
-                }
-            });
-        };
-    });
+    if(!effectPerformer) {
+        const name = typeName(type);
+        return Promise.reject(new Error(`No performer for type ${name}, ${String(effect)}, ${JSON.stringify(performer)}`));
+    } else {
+        return Promise.resolve(effectPerformer(effect, perform))
+        .then(actions => {
+            if(!Array.isArray(actions)) {
+                return [actions];
+            } else {
+                return actions;
+            }
+        });
+    };
 };

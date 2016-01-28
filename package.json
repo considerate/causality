@@ -1,6 +1,6 @@
 {
   "name": "effectjs",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Composable Side-Effects for JavaScript",
   "main": "lib/index.js",
   "scripts": {

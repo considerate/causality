@@ -25,8 +25,17 @@ export const Action = (type, data) => {
     action.data = data;
     return action;
 };
-const wrap = (type, data={}) => action => {
-    data.action = action;
+const wrap = (type, wrapData) => action => {
+    const data = {
+        action: action,
+    };
+    if(wrapData) {
+        Object.keys(wrapData).forEach(key => {
+            if(key !== 'action') {
+                data[key] = wrapData[key];
+            }
+        });
+    }
     return Action(type, data);
 };
 const unwrap = ({data:{action}}) => action;

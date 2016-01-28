@@ -24,13 +24,14 @@ export const basePerformer = () => {
             const {data} = effect;
             const {effect: first, callback, testing} = data;
             return perform(first).then(actions => { // List Action
-                return Promise.all(
-                    actions.filter(defined).map(action => {
-                        const effect = callback(action);
-                        return perform(effect); // Promise (List Action)
-                    }) // List (Promise (List Action))
-                ) // Promise (List (List Action))
-                .then(flatten); //Promise (List Action)
+                const effects = actions.filter(defined)
+                .map(action => {
+                    const nextEffect = callback(action);
+                    return nextEffect;
+                }); // List (Effect Action)
+                const promises = effects.map(perform); //List (Promise (List Action))
+                return Promise.all(promises) // Promise (List (List Action))
+                .then(flatten);
             });
         },
         [all]: (effect, perform) => {
@@ -41,7 +42,7 @@ export const basePerformer = () => {
                 return []; // : Promise (List Action)
             } else {
                 return Promise.all(effs.map(perform)) // (Promise (List (List Action)))
-                .then(flatten) // Promise (List Action)
+                .then(flatten); // Promise (List Action)
             }
         },
         [call]: (effect) => {

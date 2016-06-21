@@ -15,8 +15,12 @@ const flatten = (listOfLists) => {
 const defined = (x) => x !== undefined && x !== null;
 
 export const basePerformer = () => {
-    const {call, none, then, all} = effectTypes;
+    const {call, none, then, all, create} = effectTypes;
     const performer = {
+        [create]: (effect, perform) => {
+            const {data} = effect;
+            return [data];
+        },
         [none]: (effect, perform) => {
             return [];
         },
@@ -72,8 +76,13 @@ export const basePerformer = () => {
 // The test performer applies effects using the callbacks in the test effect
 // to both the test effect and the production effect and asserts that the types are equal for all.
 export const testPerformer = (otherEffect, assert) => {
-    const {call, none, then, all} = effectTypes;
+    const {call, none, then, all, create} = effectTypes;
     return {
+        [create]: (effect) => {
+            assert.equal(otherEffect.create, none);
+            const {data} = effect;
+            return [data];
+        },
         [none]: (effect) => {
             assert.equal(otherEffect.type, none);
             return [];

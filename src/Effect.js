@@ -3,7 +3,7 @@ import {perform} from './perform.js';
 
 export const SideEffect = Symbol('SideEffect');
 
-export const effectTypes = Types('none', 'call', 'then', 'all');
+export const effectTypes = Types('none', 'call', 'then', 'all', 'create');
 
 const call = (fn, ...args) => {
     const type = effectTypes.call;
@@ -11,10 +11,10 @@ const call = (fn, ...args) => {
         fn,
         args,
     };
-    return Effect(type, data);
+    return createEffect(type, data);
 };
 
-export const Effect = (type, data) => {
+const createEffect = (type, data) => {
     const effect = Object.create(EffectProto);
     effect.type = type;
     effect.data = data;
@@ -22,10 +22,15 @@ export const Effect = (type, data) => {
     return effect;
 };
 
+export const Effect = (data) => {
+    return createEffect(effectTypes.create, data);
+}
+
+
 var EffectProto = {
     then(fn) {
         const {type, data} = this;
-        return Effect(
+        return createEffect(
             effectTypes.then,
             {
                 effect: this,
@@ -90,7 +95,7 @@ var EffectProto = {
 Effect.types = effectTypes;
 Effect.call = call;
 
-const none = Effect(effectTypes.none);
+const none = createEffect(effectTypes.none);
 Effect.none = none;
 
 const seq = (effects) => {
@@ -101,7 +106,7 @@ const seq = (effects) => {
     if(es.length === 0) {
         return e;
     }
-    return Effect(
+    return createEffect(
         effectTypes.then,
         {
             effect: e,
@@ -123,7 +128,7 @@ const all = (effects) => {
             return [a];
         });
     } else {
-        return Effect(
+        return createEffect(
             effectTypes.all,
             {
                 effects,

@@ -1,4 +1,7 @@
 import {typeName} from './Types.js';
+
+// type Action = {type, data}
+
 const ActionProto = {
     toString() {
         const {type,data} = this;

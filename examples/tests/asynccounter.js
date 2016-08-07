@@ -1,5 +1,5 @@
-import {Effect, SideEffect, Action, performWith, basePerformer, equalActions} from '../..';
-import {update, init, INCREMENT, INCREMENT_BY, INCREMENT_LATER} from '../counter.js';
+import {Effect, Action, performWith, basePerformer, equalActions} from '../..';
+import {update, init, INCREMENT, INCREMENT_BY, INCREMENT_LATER} from '../asynccounter.js';
 const assert = require('assert');
 
 describe('Counter', () => {
@@ -32,8 +32,9 @@ describe('Counter', () => {
         });
         const {state, effect} = update(4, Action(INCREMENT_LATER));
         assert.equal(state, 4);
+        const expectedActions = [Action(INCREMENT), Action(INCREMENT)];
         return perform(effect)
-            .then(equalActions([Action(INCREMENT), Action(INCREMENT)]))
+            .then(equalActions(expectedActions))
     });
 
 });

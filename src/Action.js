@@ -1,11 +1,6 @@
-import {typeName} from './Types.js';
-
-// type Action = {type, data}
-
 const ActionProto = {
     toString() {
-        const {type,data} = this;
-        const name = typeName(type);
+        const {type: name, data} = this;
         if(data) {
             const {action} = data;
             if(action) {
@@ -28,21 +23,3 @@ export const Action = (type, data) => {
     action.data = data;
     return action;
 };
-const wrap = (type, wrapData) => action => {
-    const data = {
-        action: action,
-    };
-    if(wrapData) {
-        Object.keys(wrapData).forEach(key => {
-            if(key !== 'action') {
-                data[key] = wrapData[key];
-            }
-        });
-    }
-    return Action(type, data);
-};
-const unwrap = ({data:{action}}) => action;
-const to = (next,type,data) => action => next(wrap(type,data)(action));
-Action.to = to;
-Action.wrap = wrap;
-Action.unwrap = unwrap;

@@ -1,54 +1,39 @@
-import {Effect, SideEffect, Action, testEffects} from '../..';
-import {update, init, types} from '../counter.js';
+import {Effect, SideEffect, Action, performWith, basePerformer, equalActions} from '../..';
+import {update, init, INCREMENT, INCREMENT_BY, INCREMENT_LATER} from '../counter.js';
 const assert = require('assert');
-
-let result = init();
-let {state, effect} = result;
-const {increment, incrementLater, incrementBy} = types;
 
 describe('Counter', () => {
 
     it('Init with correct state and effect', () => {
-        let expected = {
-            state: 0,
-            effect: Effect.call((...args) => {
-                return Action(incrementLater, args);
-            }, 3000),
-            actions: [Action(incrementLater, 3000)]
-        };
-        return testEffects(init,assert)({
-            expected
+        const result = init();
+        const {state, effect} = result;
+        const perform = performWith(basePerformer, {
+            delay: (ms) => (assert.equal(ms, 3000), Promise.resolve()),
         });
+        const expectedActions = [Action(INCREMENT)];
+        return perform(effect).then(equalActions(expectedActions));
     });
 
     it('Should be effect-free when incrementing', () => {
-        const expected = {
-            state: 5,
-            effect: Effect.none
-        };
-        return testEffects(update, assert)({
-            state: 4,
-            action: Action(increment),
-            expected,
-        });
+        const {state, effect} = update(4, Action(INCREMENT));
+        assert.equal(state, 5);
+        assert.equal(effect, Effect.none);
+    });
+
+    it('should increment by specified amount', () => {
+        const {state, effect} = update(4, Action(INCREMENT_BY, 4));
+        assert.equal(state, 8);
+        assert.equal(effect, Effect.none);
     });
 
     it('Should be able to do a delayed increment', () => {
-        const expected = {
-            state: 4,
-            effect: Effect.all([
-                Effect.call((ms) => ms, 200),
-                Effect.call((ms) => ms, 100),
-            ]).map((action) => {
-                return Action(incrementBy, 1);
-            }),
-            actions: [Action(incrementBy,1), Action(incrementBy,1)],
-        };
-        return testEffects(update, assert)({
-            action: Action(incrementLater, 100),
-            state: 4,
-            expected: expected
+        const perform = performWith(basePerformer, {
+            delay: (ms) => (assert([200, 100].includes(ms)), Promise.resolve()),
         });
+        const {state, effect} = update(4, Action(INCREMENT_LATER));
+        assert.equal(state, 4);
+        return perform(effect)
+            .then(equalActions([Action(INCREMENT), Action(INCREMENT)]))
     });
 
 });

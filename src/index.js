@@ -1,13 +1,12 @@
 import Observable from 'zen-observable';
-import {Effect, effectTypes, SideEffect} from './Effect.js';
 import {Types, typeName} from './Types.js';
 import {Result, ResultSymbol} from './Result.js';
 import {Action} from './Action.js';
 import {performWith, basePerformer, testPerformer} from './perform.js';
+import {testEffects, equalActions} from './test.js';
 
-import {testEffects} from './test.js';
-
-export {Effect, Types, Result, Action, SideEffect, basePerformer, testPerformer, performWith, testEffects};
+import {NONE} from './EffectTypes.js';
+import {Effect, SideEffect} from './Effect.js';
 
 const noop = () => {};
 const nextTick = (f) => setTimeout(f, 0);
@@ -17,8 +16,7 @@ const app = (options) => {
         view: noop
     };
     const {init, update, view, performer: customPerformer, inputs, onView} = Object.assign(defaults, options);
-    const base = basePerformer();
-    const performer = Object.assign({},base,customPerformer);
+    const performer = Object.assign({}, basePerformer, customPerformer);
     const viewListeners = [];
     const startListeners = [];
     let started = false;
@@ -70,7 +68,7 @@ const app = (options) => {
                 }
                 const {state: nextState, effect} = result;
                 state = nextState;
-                if(effect && effect.type !== effectTypes.none) {
+                if(effect && effect.type !== NONE) {
                     handleEffect(effect,action);
                 }
                 const rendered = view(state, next);
@@ -95,3 +93,4 @@ const app = (options) => {
 };
 Effect.app = app;
 
+export {Effect, Result, Action, basePerformer, testPerformer, performWith, testEffects, equalActions};

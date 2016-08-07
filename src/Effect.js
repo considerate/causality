@@ -1,124 +1,78 @@
-import {Types, typeName} from './Types.js';
 import {perform} from './perform.js';
+import {effectJSON} from './json.js';
+import {NONE, APPLY, ALL, CREATE} from './EffectTypes.js';
 
 export const SideEffect = Symbol('SideEffect');
 
-export const effectTypes = Types('none', 'call', 'then', 'all', 'create');
-
-const call = (fn, ...args) => {
-    const type = effectTypes.call;
-    const data = {
-        fn,
-        args,
-    };
-    return createEffect(type, data);
+export const apply = (f, x) => {
+    if(f.type === CREATE) {
+        if(x.type === CREATE) {
+            return Effect(f(x));
+        } else {
+            return createEffect(APPLY, {
+                f,
+                x,
+            });
+        }
+    } else if(x.type === CREATE) {
+        const fn = (f) => f(x);
+        return apply(Effect(fn), f);
+    } else if(f.type === NONE) {
+        return x;
+    } else {
+        return createEffect(APPLY, {
+            f,
+            x,
+        });
+    }
 };
 
-const createEffect = (type, data) => {
+const call = (fn, x) => {
+    return apply(fn, Effect(x));
+};
+
+const createEffect = (type, data, performer) => {
     const effect = Object.create(EffectProto);
-    effect.type = type;
-    effect.data = data;
     effect[SideEffect] = true;
-    return effect;
+    return Object.assign(effect, {type, data, performer});
 };
 
 export const Effect = (data) => {
-    return createEffect(effectTypes.create, data);
+    if(data[SideEffect] === true) {
+        //Effect(Effect(x)) == Effect(x);
+        return data;
+    } else {
+        return createEffect(CREATE, data);
+    }
 }
-
+Effect.create = createEffect;
 
 var EffectProto = {
-    then(fn) {
-        const {type, data} = this;
-        return createEffect(
-            effectTypes.then,
-            {
-                effect: this,
-                callback: fn,
-            }
-        );
-    },
     map(fn) {
-        if(this.type === effectTypes.none) {
-            return Effect.none;
-        }
-        const result = this.then(function map(x) {
-            return call(fn, x);
-        });
-        return result;
+        const mapped = apply(Effect(fn), this);
+        return mapped;
     },
     stringify(space='  ', indent='') {
-        const {type, data} = this;
-        const name = typeName(type);
-        if(type === effectTypes.none) {
-            return `[Effect ${name}]`;
-        } else if(type === effectTypes.call) {
-            const {fn, args} = data;
-            const fnName = fn.name || 'fn';
-            const fnArgs = args.map(arg => {
-                return space+String(arg);
-            }).join(',\n');
-            return [
-                name+'(',
-                space + fnName,
-                fnArgs,
-                indent+ ')'
-            ].join('\n');
-        } else if(type === effectTypes.then) {
-            const {effect, callback} = data;
-            const fnName = callback.name || 'fn';
-            const eff = effect.stringify('  '+space, space);
-            return [
-                name+'(',
-                space+eff,
-                space+fnName,
-                indent+ ')'
-            ].join('\n');
-        } else if (type === effectTypes.all) {
-            const {effects} = data;
-            const nested = effects.map(effect => {
-                return space+effect.stringify('  '+space, space);
-            }).join(',\n');
-            return [
-                name+'([',
-                nested,
-                indent+'])'
-            ].join('\n');
-        } else {
-            return name+'('+JSON.stringify(data)+')';
-        }
+        return effectJSON(effectTypes)(this, space, indent);
     },
     toString() {
         return this.stringify();
     }
 };
-Effect.types = effectTypes;
 Effect.call = call;
 
-const none = createEffect(effectTypes.none);
+const none = createEffect(NONE);
 Effect.none = none;
 
 const seq = (effects) => {
-    const id = x => x;
-    const copy = arr => arr.map(id);
-    const es = copy(effects);
-    const e = es.shift(); //take out the first element
-    if(es.length === 0) {
-        return e;
-    }
-    return createEffect(
-        effectTypes.then,
-        {
-            effect: e,
-            callback: () => seq(es),
-        }
-    );
+    throw new Error(`Effect.seq is deprecated.
+    Please use effect.map() instead.`);
 };
 Effect.seq = seq;
 
 const all = (effects) => {
     if(!Array.isArray(effects)) {
-        throw new Error('Need to pass array to Effect.all, got: '+JSON.stringify(effects));
+        throw new Error(`Need to pass array to Effect.all, got: ${JSON.stringify(effects)}`);
     }
     if(effects.length === 0) {
         return Effect.none;
@@ -129,7 +83,7 @@ const all = (effects) => {
         });
     } else {
         return createEffect(
-            effectTypes.all,
+            ALL,
             {
                 effects,
             }

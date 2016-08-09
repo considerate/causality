@@ -17,17 +17,13 @@ const defined = (x) => x !== undefined && x !== null;
 
 const forceArray = (actions) => {
     if(!Array.isArray(actions)) {
-        if(actions) {
-            return [actions];
-        } else {
-            return [];
-        }
+        return [actions];
     } else {
-        return actions.filter(defined);
+        return actions;
     }
 };
 
-export const basePerformer = {
+export const basePerformer = () => ({
     [CREATE]: (data, perform) => {
         return Promise.resolve([data]);
     },
@@ -36,11 +32,16 @@ export const basePerformer = {
     },
     [APPLY]: (data, perform) => {
         const {f, x} = data;
-        const fn = f.data;
         //apply effect in Promise monad by lifiting the result of f(x).
-        const promise = perform(x);
-        return perform(x).then(value => {
-            return forceArray(fn(value));
+        return Promise.all([
+            perform(f),
+            perform(x)
+        ]).then(([functions, values]) => {
+            const result = [];
+            functions.forEach(f =>
+                values.forEach(v =>
+                    result.push(f(v))));
+            return result;
         });
     },
     [ALL]: (data, perform) => {
@@ -50,25 +51,29 @@ export const basePerformer = {
             return Promise.resolve([]); // : Promise (List Action)
         } else {
             return Promise.all(effs.map(perform)) // (Promise (List (List Action)))
-            .then(flatten); // Promise (List Action)
+                .then(flatten); // Promise (List Action)
         }
     },
-};
+});
 
-export const perform = (effect) => {
-    return performWith(basePerformer, {
-        [effect.type]: effect.performer,
-    });
-};
+const customPerformer = (effect) => ({
+    [effect.type]: effect.performer,
+});
+
+export const performer = (...extraPerformers) =>
+    performWith(basePerformer, ...extraPerformers, customPerformer);
+
+const call = (x) => (f) => f(x);
 
 // perform : Effect Action -> Promise (List Action)
 export const performWith = (...performers) => (effect) => {
-    const {type, data} = effect;
-    const effectPerformer = performers.find((p) => defined(p[type]));
+    const {type} = effect;
+    const effectPerformer = performers.map(call(effect)).find((p) => defined(p[type]));
     if(!effectPerformer) {
         const name = typeName(type);
         return Promise.reject(new Error(`No performer for type ${name}, ${String(effect)}, ${JSON.stringify(performer)}`));
     } else {
+        const {data} = effect;
         const performer = effectPerformer[type];
         const perform = performWith(...performers);
         const result = performer(data, perform);

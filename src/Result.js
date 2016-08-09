@@ -1,5 +1,7 @@
 import {Effect,effectTypes} from './Effect.js';
 
+// type Result = {state, effect}
+
 export const ResultSymbol = Symbol('result');
 const ResultProto = {
     toString() {

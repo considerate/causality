@@ -1,5 +1,6 @@
 import {typeName} from './Types.js';
-import {Effect,effectTypes} from './Effect.js';
+import {Effect} from './Effect.js';
+import {NONE, CREATE, APPLY, ALL} from './EffectTypes.js';
 
 const flatten = (listOfLists) => {
     if(listOfLists.length === 0) {
@@ -14,138 +15,68 @@ const flatten = (listOfLists) => {
 
 const defined = (x) => x !== undefined && x !== null;
 
-export const basePerformer = () => {
-    const {call, none, then, all} = effectTypes;
-    const performer = {
-        [none]: (effect, perform) => {
-            return [];
-        },
-        [then]: (effect, perform) => {
-            const {data} = effect;
-            const {effect: first, callback, testing} = data;
-            return perform(first).then(actions => { // List Action
-                const effects = actions.filter(defined)
-                .map(action => {
-                    const nextEffect = callback(action);
-                    return nextEffect;
-                }); // List (Effect Action)
-                const promises = effects.map(perform); //List (Promise (List Action))
-                return Promise.all(promises) // Promise (List (List Action))
-                .then(flatten);
-            });
-        },
-        [all]: (effect, perform) => {
-            const {data} = effect;
-            const {effects}  = data;
-            const effs = effects.filter(eff => defined(eff) && eff.type !== effectTypes.none); // List (Effect Action)
-            if(effs.length === 0) {
-                return []; // : Promise (List Action)
-            } else {
-                return Promise.all(effs.map(perform)) // (Promise (List (List Action)))
+const forceArray = (actions) => {
+    if(!Array.isArray(actions)) {
+        return [actions];
+    } else {
+        return actions;
+    }
+};
+
+export const basePerformer = () => ({
+    [CREATE]: (data, perform) => {
+        return Promise.resolve([data]);
+    },
+    [NONE]: (data, perform) => {
+        return Promise.resolve([]);
+    },
+    [APPLY]: (data, perform) => {
+        const {f, x} = data;
+        //apply effect in Promise monad by lifiting the result of f(x).
+        return Promise.all([
+            perform(f),
+            perform(x)
+        ]).then(([functions, values]) => {
+            const result = [];
+            functions.forEach(f =>
+                values.forEach(v =>
+                    result.push(f(v))));
+            return result;
+        });
+    },
+    [ALL]: (data, perform) => {
+        const {effects}  = data;
+        const effs = effects.filter(eff => defined(eff) && eff.type !== NONE); // List (Effect Action)
+        if(effs.length === 0) {
+            return Promise.resolve([]); // : Promise (List Action)
+        } else {
+            return Promise.all(effs.map(perform)) // (Promise (List (List Action)))
                 .then(flatten); // Promise (List Action)
-            }
-        },
-        [call]: (effect) => {
-            const {data} = effect;
-            const {fn, args} = data;
-            return Promise.resolve(fn.apply(fn,args))
-            .then(action => {
-                if(!Array.isArray(action)) {
-                    if(action) {
-                        return [action];
-                    } else {
-                        return [];
-                    }
-                } else {
-                    const actions = action; // Multiple actions returned
-                    return actions.filter(defined);
-                }
-            })
-            .catch(error => {
-                console.error('Error in effect', String(effect), 'fn is undefined');
-            })
-        },
-    };
-    return performer;
-};
-
-// The test performer applies effects using the callbacks in the test effect
-// to both the test effect and the production effect and asserts that the types are equal for all.
-export const testPerformer = (otherEffect, assert) => {
-    const {call, none, then, all} = effectTypes;
-    return {
-        [none]: (effect) => {
-            assert.equal(otherEffect.type, none);
-            return [];
-        },
-        [then]: (effect) => {
-            assert.equal(otherEffect.type, then);
-            const {effect: otherFirst} = otherEffect.data;
-            const perform = performWith(testPerformer(otherFirst, assert));
-            const {data} = effect;
-            const {effect: first, testing} = data;
-            const callback = otherEffect.data.callback;
-            return Promise.all([perform(first), perform(otherFirst)])
-            .then(([actions, otherActions]) => {
-                return Promise.all(actions.map((action,i) => {
-                    const otherAction = otherActions[i];
-                    const otherEffect = callback(otherAction);
-                    const effect = callback(action);
-                    const perform = performWith(testPerformer(otherEffect, assert));
-                    return perform(effect);
-                }))
-                .then(flatten);
-            });
-        },
-        [all]: (effect) => {
-            assert.equal(otherEffect.type, all);
-            const {data} = effect;
-            const {effects}  = data;
-            const otherEffects = otherEffect.data.effects;
-            return Promise.all(effects.filter(defined).map((effect,i) => {
-                const other = otherEffects.filter(defined)[i];
-                const perform = performWith(testPerformer(other, assert));
-                return perform(effect);
-            }))
-            .then(flatten)
-        },
-        [call]: (effect) => {
-            const {data} = effect;
-            const {args} = data;
-            const fn = otherEffect.data.fn;
-            return Promise.resolve(fn.apply(fn,args))
-            .then(action => {
-                if(!Array.isArray(action)) {
-                    return [action];
-                } else {
-                    const actions = action; // Multiple actions returned
-                    return actions;
-                }
-            });
         }
-    };
-};
+    },
+});
 
-export const perform = (effect) => {
-    return performWith(basePerformer);
-};
+const customPerformer = (effect) => ({
+    [effect.type]: effect.performer,
+});
+
+export const performer = (...extraPerformers) =>
+    performWith(basePerformer, ...extraPerformers, customPerformer);
+
+const call = (x) => (f) => f(x);
 
 // perform : Effect Action -> Promise (List Action)
-export const performWith = performer => (effect) => {
-    const perform = performWith(performer);
-    const {type, data} = effect;
-    const effectPerformer = performer[type];
+export const performWith = (...performers) => (effect) => {
+    const {type} = effect;
+    const effectPerformer = performers.map(call(effect)).find((p) => defined(p[type]));
     if(!effectPerformer) {
         const name = typeName(type);
         return Promise.reject(new Error(`No performer for type ${name}, ${String(effect)}, ${JSON.stringify(performer)}`));
     } else {
-        return Promise.resolve(effectPerformer(effect, perform))
-        .then(actions => {
-            if(!Array.isArray(actions)) {
-                return [actions];
-            } else {
-                return actions;
-            }
-        });
+        const {data} = effect;
+        const performer = effectPerformer[type];
+        const perform = performWith(...performers);
+        const result = performer(data, perform);
+        return Promise.resolve(result).then(forceArray);
     };
 };

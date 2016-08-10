@@ -1,6 +1,7 @@
 {
   "name": "effectjs",
   "version": "1.0.1-beta",
+  "repository": "considerate/effect.js",
   "description": "Composable Side-Effects for JavaScript",
   "main": "dist/index.js",
   "jsnext:main": "src/index.js",

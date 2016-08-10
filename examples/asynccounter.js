@@ -1,4 +1,4 @@
-import {Action, Result, Effect} from '..';
+import {Action, Result, Effect, Effects} from '..';
 
 /**
  * This is the default performer
@@ -10,11 +10,11 @@ import {Action, Result, Effect} from '..';
 const delayPerformer = (ms) => {
     return new Promise((resolve) => setTimeout(resolve, ms))
 };
-const delay = (ms) => Effect.create('delay', ms, delayPerformer);
+const delay = (ms) => Effects.create('delay', ms, delayPerformer);
 
 // A performer can return a base value as well as a promise.
 const timePerformer = () => Date.now();
-const time = Effect.create('currentTime', undefined, timePerformer);
+const time = Effects.create('currentTime', undefined, timePerformer);
 
 export const INCREMENT = 'increment';
 export const INCREMENT_LATER = 'incrementLater';
@@ -27,7 +27,7 @@ const increment = () => Action(INCREMENT);
 const waitAndInc = (ms) => delay(ms).map(increment);
 
 // These effects will run concurrently.
-const incLater = ms => Effect.all(
+const incLater = ms => Effects.all(
     [
         waitAndInc(ms*2),
         waitAndInc(ms)
@@ -49,7 +49,7 @@ export const update = (state, action) => {
         const getTime = time.map((timestamp) => {
             return Action(GOT_TIME, timestamp);
         });
-        return Result(state, Effect.all([getTime, waitAndInc(20)]));
+        return Result(state, Effects.all([getTime, waitAndInc(20)]));
     } else if(type === GOT_TIME) {
         return Result(state);
     }

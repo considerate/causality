@@ -16,4 +16,31 @@ export const effectString = (effect) => {
         const value = (data && data.name) ? data.name : String(data);
         return `${name}(${value})`;
     }
-}
+};
+
+export const actionString = (action) => {
+    const {type: name, data} = action;
+    if(data) {
+        const {action: inner} = data;
+        if(inner) {
+            return `Action(${name}, ${inner})`;
+        } else {
+            let dataString = String(data);
+            if(dataString === '[object Object]') {
+                dataString = JSON.stringify(data);
+            }
+            return `Action(${name}, ${dataString})`;
+        }
+    } else {
+        return `Action(${name})`;
+    }
+};
+
+export const resultString = (result) => {
+    const {state, effect} = this;
+    const stateString = JSON.stringify(state);
+    if(effect.type === effectTypes.none) {
+        return `Result(${stateString})`;
+    }
+    return `Result(${stateString}, ${effect})`;
+};

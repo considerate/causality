@@ -1,5 +1,3 @@
-import {typeName} from './Types.js';
-import {Effect} from './Effect.js';
 import {NONE, CREATE, APPLY, ALL} from './EffectTypes.js';
 
 const flatten = (listOfLists) => {
@@ -68,10 +66,10 @@ const call = (x) => (f) => f(x);
 // perform : Effect Action -> Promise (List Action)
 export const performWith = (...performers) => (effect) => {
     const {type} = effect;
-    const effectPerformer = performers.map(call(effect)).find((p) => defined(p[type]));
+    const effectPerformers = performers.map(call(effect));
+    const effectPerformer = effectPerformers.find((p) => defined(p[type]));
     if(!effectPerformer) {
-        const name = typeName(type);
-        return Promise.reject(new Error(`No performer for type ${name}, ${String(effect)}, ${JSON.stringify(performer)}`));
+        return Promise.reject(new Error(`No performer for type ${type}, ${String(effect)}, ${JSON.stringify(effectPerformers)}`));
     } else {
         const {data} = effect;
         const performer = effectPerformer[type];

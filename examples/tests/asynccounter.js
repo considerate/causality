@@ -1,6 +1,8 @@
-import {Effect, Action, performWith, basePerformer, equalActions} from '../..';
+import {Effect, Effects, Action} from '../..';
 import {update, init, INCREMENT, INCREMENT_BY, INCREMENT_LATER, GET_TIME, GOT_TIME} from '../asynccounter.js';
 const assert = require('assert');
+
+const equalActions = (expected) => (actual) => assert.deepEqual(actual, expected);
 
 describe('Counter', () => {
 
@@ -10,7 +12,7 @@ describe('Counter', () => {
         const testPerformer = (effect) => ({
             delay: (ms) => (assert.equal(ms, 3000), Promise.resolve()),
         })
-        const perform = performWith(basePerformer, testPerformer);
+        const perform = Effects.performWith(Effects.basePerformer, testPerformer);
         const expectedActions = [Action(INCREMENT)];
         return perform(effect).then(equalActions(expectedActions));
     });
@@ -18,20 +20,20 @@ describe('Counter', () => {
     it('Should be effect-free when incrementing', () => {
         const {state, effect} = update(4, Action(INCREMENT));
         assert.equal(state, 5);
-        assert.equal(effect, Effect.none);
+        assert.equal(effect, Effects.none);
     });
 
     it('should increment by specified amount', () => {
         const {state, effect} = update(4, Action(INCREMENT_BY, 4));
         assert.equal(state, 8);
-        assert.equal(effect, Effect.none);
+        assert.equal(effect, Effects.none);
     });
 
     it('Should be able to do a delayed increment', () => {
         const testPerformer = (effect) => ({
             delay: (ms) => (assert([200, 100].includes(ms)), Promise.resolve()),
         });
-        const perform = performWith(basePerformer, testPerformer);
+        const perform = Effects.performWith(Effects.basePerformer, testPerformer);
         const {state, effect} = update(4, Action(INCREMENT_LATER));
         assert.equal(state, 4);
         const expectedActions = [Action(INCREMENT), Action(INCREMENT)];
@@ -60,7 +62,7 @@ describe('Counter', () => {
                 }
             }
         };
-        const perform = performWith(basePerformer, timePerformer);
+        const perform = Effects.performWith(Effects.basePerformer, timePerformer);
         const {state, effect} = update(4, Action(GET_TIME));
         assert.equal(state, 4);
         const expectedActions = [Action(GOT_TIME, NOW), Action(INCREMENT)];

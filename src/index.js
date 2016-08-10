@@ -1,27 +1,28 @@
 import Observable from 'zen-observable';
-import {Types, typeName} from './Types.js';
-import {Result, ResultSymbol} from './Result.js';
-import {Action} from './Action.js';
-import {performWith, basePerformer, performer} from './perform.js';
-import {testEffects, equalActions} from './test.js';
+import Result from './Results.js';
+import Action from './Actions.js';
 
 import {NONE} from './EffectTypes.js';
-import {Effect, SideEffect} from './Effect.js';
+import Effect, * as Effects from './Effects.js';
 
 const noop = () => {};
 const nextTick = (f) => setTimeout(f, 0);
 
-const app = (options) => {
-    const defaults = {
-        view: noop
-    };
-    const {init, update, view, performers: customPerformers, inputs, onView} = Object.assign(defaults, options);
+const App = (options) => {
+    const {
+        init,
+        update,
+        view = noop,
+        performers: customPerformers,
+        inputs,
+        onView,
+    } = options;
     const viewListeners = [];
-    const startListeners = [];
+    let startListeners = [];
     let started = false;
     let initialView;
-    const perform = customPerformers ? performer(customPerformers)
-        : performer();
+    const perform = customPerformers ? Effects.performer(customPerformers)
+        : Effects.performer();
     const app = {
         onView: (f) => {
             viewListeners.push(f);
@@ -61,7 +62,7 @@ const app = (options) => {
                 const {type} = action;
                 const result = update(state, action);
                 if(!result || result.state === undefined) {
-                    const error = new Error(`Unhandled action type ${typeName(type)} for action ${String(action)}`);
+                    const error = new Error(`Unhandled action type ${type} for action ${action}`);
                     if(action.type !== 'error') {
                         next(Action('error', {error}));
                     }
@@ -69,7 +70,7 @@ const app = (options) => {
                 const {state: nextState, effect} = result;
                 state = nextState;
                 if(effect && effect.type !== NONE) {
-                    handleEffect(effect,action);
+                    handleEffect(effect, action);
                 }
                 const rendered = view(state, next);
                 viewListeners.forEach(handler => handler(rendered, next));
@@ -83,7 +84,9 @@ const app = (options) => {
             let {state, effect} = result;
             initialView = view(state, next);
             started = true;
+            // Call and clear startListeners
             startListeners.forEach(handler => handler(initialView));
+            startListeners = [];
             nextTick(() => {
                 handleEffect(effect);
             });
@@ -91,6 +94,11 @@ const app = (options) => {
     };
     return app;
 };
-Effect.app = app;
 
-export {Effect, Result, Action, basePerformer, performWith, performer, equalActions};
+export {
+    App,
+    Effect,
+    Effects,
+    Result,
+    Action,
+};

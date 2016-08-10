@@ -31,7 +31,7 @@ describe('Counter', () => {
 
     it('Should be able to do a delayed increment', () => {
         const testPerformer = (effect) => ({
-            delay: (ms) => (assert([200, 100].includes(ms)), Promise.resolve()),
+            delay: (ms) => (assert(ms === 100 || ms === 200), Promise.resolve()),
         });
         const perform = Effects.performWith(Effects.basePerformer, testPerformer);
         const {state, effect} = update(4, Action(INCREMENT_LATER));

@@ -1,10 +1,10 @@
-import {APPLY, NONE, ALL} from './EffectTypes.js';
+import {APPLY, NONE, ALL} from './CauseTypes.js';
 
-export const effectString = (effect) => {
-    const {type, data} = effect;
+export const causeString = (cause) => {
+    const {type, data} = cause;
     const name = type;
     if(type === NONE) {
-        return `[Effect ${name}]`;
+        return `[Cause ${name}]`;
     } else if(type === APPLY) {
         const {f, x} = data;
         return `${name}(${f}, ${x})`;
@@ -37,9 +37,9 @@ export const actionString = (action) => {
 };
 
 export const resultString = (result) => {
-    const {state, effect} = this;
+    const {state, cause} = this;
     const stateString = JSON.stringify(state);
-    if(effect.type === effectTypes.none) {
+    if(cause.type === NONE) {
         return `Result(${stateString})`;
     }
     return `Result(${stateString}, ${effect})`;

@@ -2,8 +2,8 @@ import Observable from 'zen-observable';
 import Result from './Results.js';
 import Action from './Actions.js';
 
-import {NONE} from './EffectTypes.js';
-import Effect, * as Effects from './Effects.js';
+import {NONE} from './CauseTypes.js';
+import Cause, * as Causes from './Causes.js';
 
 const noop = () => {};
 const nextTick = (f) => setTimeout(f, 0);
@@ -21,8 +21,8 @@ const App = (options) => {
     let startListeners = [];
     let started = false;
     let initialView;
-    const perform = customPerformers ? Effects.performer(customPerformers)
-        : Effects.performer();
+    const perform = customPerformers ? Causes.performer(customPerformers)
+        : Causes.performer();
     const app = {
         onView: (f) => {
             viewListeners.push(f);
@@ -45,16 +45,17 @@ const App = (options) => {
                     inputs.forEach(next);
                 }
             });
-            const handleEffect = (effect, action) => {
-                return perform(effect)
+            const handleCause = (cause, action) => {
+                return perform(cause)
                 .then(actions => {
                     actions.forEach(next);
                 })
                 .catch(error => {
+                    console.error(error);
                     if(action && action.type === 'error') {
                         //Avoid stack-overflows
                     } else {
-                        next(Action('error', {error,effect,action}));
+                        next(Action('error', {error,cause,action}));
                     }
                 });
             };
@@ -67,10 +68,10 @@ const App = (options) => {
                         next(Action('error', {error}));
                     }
                 }
-                const {state: nextState, effect} = result;
+                const {state: nextState, cause} = result;
                 state = nextState;
-                if(effect && effect.type !== NONE) {
-                    handleEffect(effect, action);
+                if(cause && cause.type !== NONE) {
+                    handleCause(cause, action);
                 }
                 const rendered = view(state, next);
                 viewListeners.forEach(handler => handler(rendered, next));
@@ -81,14 +82,14 @@ const App = (options) => {
             });
 
             const result = init();
-            let {state, effect} = result;
+            let {state, cause} = result;
             initialView = view(state, next);
             started = true;
             // Call and clear startListeners
             startListeners.forEach(handler => handler(initialView));
             startListeners = [];
             nextTick(() => {
-                handleEffect(effect);
+                handleCause(cause);
             });
         }
     };
@@ -97,8 +98,8 @@ const App = (options) => {
 
 export {
     App,
-    Effect,
-    Effects,
+    Cause,
+    Causes,
     Result,
     Action,
 };

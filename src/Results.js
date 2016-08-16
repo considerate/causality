@@ -1,4 +1,4 @@
-import * as Effects from './Effects.js';
+import * as Causes from './Causes.js';
 import {resultString} from './pretty.js';
 
 export const ResultSymbol = Symbol('result');
@@ -8,10 +8,10 @@ const ResultProto = {
     },
 };
 
-const Result = (state, effect=Effects.none) => {
+const Result = (state, cause=Causes.none) => {
     const result = Object.create(ResultProto);
     result.state = state;
-    result.effect = effect;
+    result.cause = cause;
     result[ResultSymbol] = true;
     return result;
 };

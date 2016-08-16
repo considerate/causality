@@ -1,4 +1,4 @@
-import {NONE, PURE, APPLY, ALL} from './EffectTypes.js';
+import {NONE, PURE, APPLY, ALL} from './CauseTypes.js';
 
 const flatten = (listOfLists) => {
     if(listOfLists.length === 0) {
@@ -21,7 +21,7 @@ const forceArray = (actions) => {
     }
 };
 
-export const basePerformer = (effect) => ({
+export const basePerformer = (cause) => ({
     [PURE]: (data, perform) => {
         return Promise.resolve([data]);
     },
@@ -30,7 +30,7 @@ export const basePerformer = (effect) => ({
     },
     [APPLY]: (data, perform) => {
         const {f, x} = data;
-        //apply effect in Promise monad by lifiting the result of f(x).
+        //apply cause in Promise monad by lifiting the result of f(x).
         return Promise.all([
             perform(f),
             perform(x)
@@ -43,8 +43,8 @@ export const basePerformer = (effect) => ({
         });
     },
     [ALL]: (data, perform) => {
-        const {effects}  = data;
-        const effs = effects.filter(eff => defined(eff) && eff.type !== NONE); // List (Effect Action)
+        const {causes}  = data;
+        const effs = causes.filter(eff => defined(eff) && eff.type !== NONE); // List (cause Action)
         if(effs.length === 0) {
             return Promise.resolve([]); // : Promise (List Action)
         } else {
@@ -54,8 +54,8 @@ export const basePerformer = (effect) => ({
     },
 });
 
-const customPerformer = (effect) => ({
-    [effect.type]: effect.performer,
+const customPerformer = (cause) => ({
+    [cause.type]: cause.performer,
 });
 
 export const performer = (...extraPerformers) =>
@@ -63,16 +63,16 @@ export const performer = (...extraPerformers) =>
 
 const call = (x) => (f) => f(x);
 
-// perform : Effect Action -> Promise (List Action)
-export const performWith = (...performers) => (effect) => {
-    const {type} = effect;
-    const effectPerformers = performers.map(call(effect));
-    const effectPerformer = effectPerformers.find((p) => defined(p[type]));
-    if(!effectPerformer) {
-        return Promise.reject(new Error(`No performer for type ${type}, ${String(effect)}, ${JSON.stringify(effectPerformers)}`));
+// perform : cause Action -> Promise (List Action)
+export const performWith = (...performers) => (cause) => {
+    const {type} = cause;
+    const causePerformers = performers.map(call(cause));
+    const causePerformer = causePerformers.find((p) => defined(p[type]));
+    if(!causePerformer) {
+        return Promise.reject(new Error(`No performer for type ${type}, ${String(cause)}, ${JSON.stringify(causePerformers)}`));
     } else {
-        const {data} = effect;
-        const performer = effectPerformer[type];
+        const {data} = cause;
+        const performer = causePerformer[type];
         const perform = performWith(...performers);
         const result = performer(data, perform);
         return Promise.resolve(result).then(forceArray);

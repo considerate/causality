@@ -1,4 +1,4 @@
-import {Action, Result, Effect, Effects} from '..';
+import {Action, Result, Cause, Causes} from '..';
 
 /**
  * This is the default performer
@@ -10,11 +10,11 @@ import {Action, Result, Effect, Effects} from '..';
 const delayPerformer = (ms) => {
     return new Promise((resolve) => setTimeout(resolve, ms))
 };
-const delay = (ms) => Effects.create('delay', ms, delayPerformer);
+const delay = (ms) => Causes.create('delay', ms, delayPerformer);
 
 // A performer can return a base value as well as a promise.
 const timePerformer = () => Date.now();
-const time = Effects.create('currentTime', undefined, timePerformer);
+const time = Causes.create('currentTime', undefined, timePerformer);
 
 export const INCREMENT = 'increment';
 export const INCREMENT_LATER = 'incrementLater';
@@ -27,14 +27,14 @@ const increment = () => Action(INCREMENT);
 const waitAndInc = (ms) => delay(ms).map(increment);
 
 // These effects will run concurrently.
-const incLater = ms => Effects.all(
+const incLater = ms => Causes.all(
     [
         waitAndInc(ms*2),
         waitAndInc(ms)
     ]
 );
 
-export const init = () => Result(0, waitAndInc(3000));
+export const init = () => Result(0, waitAndInc(30));
 
 export const update = (state, action) => {
     const {type, data} = action;
@@ -49,7 +49,7 @@ export const update = (state, action) => {
         const getTime = time.map((timestamp) => {
             return Action(GOT_TIME, timestamp);
         });
-        return Result(state, Effects.all([getTime, waitAndInc(20)]));
+        return Result(state, Causes.all([getTime, waitAndInc(20)]));
     } else if(type === GOT_TIME) {
         return Result(state);
     }

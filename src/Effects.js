@@ -1,6 +1,6 @@
 import {performWith, basePerformer, performer} from './perform.js';
 import {effectString} from './pretty.js';
-import {NONE, APPLY, ALL, CREATE} from './EffectTypes.js';
+import {NONE, APPLY, ALL, PURE} from './EffectTypes.js';
 
 export {performWith, basePerformer, performer};
 
@@ -20,9 +20,7 @@ export const all = (effects) => {
     if(!Array.isArray(effects)) {
         throw new Error(`Need to pass array to Effects.all, got: ${JSON.stringify(effects)}`);
     }
-    if(effects.length === 0) {
-        return none;
-    } else if(effects.length === 1) {
+    if (effects.length === 1) {
         const [effect] = effects;
         return effect;
     } else {
@@ -44,10 +42,18 @@ export const apply = (f, x) => {
         const {effects} = x.data;
         const applications = effects.map((e) => apply(f, e));
         return all(applications);
-    } else if(f.type === CREATE) {
-        if(x.type === CREATE) {
+    } else if(f.type === PURE) {
+        if(x.type === PURE) {
             return Effect(f.data(x.data));
-        } else if (x[SideEffect]) {
+        }
+        // else if(x.type === APPLY && x.data.f.type === PURE) {
+        //     const {f: f2, x : x2} = x.data;
+        //     const ap = (g) => g(f2.data);
+        //     const application = Effect(ap);
+        //     const top = apply(application, f2);
+        //     return apply(top, x2);
+        // }
+        else if (x[SideEffect]) {
             return createEffect(APPLY, {
                 f,
                 x,
@@ -55,7 +61,7 @@ export const apply = (f, x) => {
         } else {
             throw new Error(`Effects.apply expects both arguments to be Effects, got (${f}, ${x}).`);
         }
-    } else if(x.type === CREATE) {
+    } else if(x.type === PURE) {
         const ap = (g) => g(x.data);
         const application = Effect(ap);
         return apply(application, f);
@@ -87,14 +93,14 @@ export const sequence = (...effects) =>
 
 export const seq = sequence;
 
-export const none = createEffect(NONE);
+export const none = all([]); //createEffect(NONE);
 
 function Effect(data) {
     if(data[SideEffect] === true) {
         //Effect(Effect(x)) == Effect(x);
         return data;
     } else {
-        return createEffect(CREATE, data);
+        return createEffect(PURE, data);
     }
 }
 

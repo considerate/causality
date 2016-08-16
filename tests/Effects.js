@@ -183,9 +183,27 @@ describe('Effect', () => {
     it('compose to compose', () => {
         const perform = Effects.performer();
         const twice = Effects.create('twice', (x) => x*2, (fn) => Promise.resolve(fn));
-        const effect = Effects.compose(Effect(y => y + 3), Effects.compose(twice, Effect(2)));
+        const bottom = Effects.compose(twice, Effect(2));
+        const effect = Effects.compose(Effect(y => y + 3), bottom);
         return perform(effect).then(values => {
             assert.deepEqual(values, [7]);
+        });
+    });
+
+
+    it('none applied to something returns none', () => {
+        const perform = Effects.performer();
+        const effect = Effects.apply(Effects.none, Effect(2));
+        return perform(effect).then((values) => {
+            assert.deepEqual(values, []);
+        });
+    });
+
+    it('something applied to none returns none', () => {
+        const perform = Effects.performer();
+        const effect = Effects.apply(Effect((x) => 2), Effects.none);
+        return perform(effect).then((values) => {
+            assert.deepEqual(values, []);
         });
     });
 
@@ -223,6 +241,20 @@ describe('Effect', () => {
         return perform(effect).then(values => {
             assert.deepEqual(values, [2, 3]);
         });
+    });
+
+    it.skip('optimizes pure effect with custom effect in the middle', () => {
+        const perform = Effects.performer();
+        const custom = Effects.create('custom', undefined, () => (x) => x);
+        const effect = Effects.compose(Effect((x) => x * 2), custom, Effect(2));
+        assert.equal(effect.type, 'apply');
+        const {f, x} = effect.data;
+        assert.equal(f.type, 'pure');
+        // console.log(effect);
+        assert.equal(x.type, 'custom');
+        return perform(effect).then((values) => {
+            assert.deepEqual(values, [4]);
+        })
     });
 });
 

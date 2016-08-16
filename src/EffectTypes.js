@@ -1,4 +1,4 @@
 export const NONE = 'none';
 export const APPLY = 'apply';
 export const ALL = 'all';
-export const CREATE = 'create';
+export const PURE = 'pure';

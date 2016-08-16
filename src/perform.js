@@ -1,4 +1,4 @@
-import {NONE, CREATE, APPLY, ALL} from './EffectTypes.js';
+import {NONE, PURE, APPLY, ALL} from './EffectTypes.js';
 
 const flatten = (listOfLists) => {
     if(listOfLists.length === 0) {
@@ -21,8 +21,8 @@ const forceArray = (actions) => {
     }
 };
 
-export const basePerformer = () => ({
-    [CREATE]: (data, perform) => {
+export const basePerformer = (effect) => ({
+    [PURE]: (data, perform) => {
         return Promise.resolve([data]);
     },
     [NONE]: (data, perform) => {

@@ -1,6 +1,5 @@
 # Causality
 ![Build Status](https://travis-ci.org/considerate/causality.svg?branch=master)
-![Codeship Build Status](https://codeship.com/projects/168724/status?branch=master)
 
 Declarative and testable side-effects in JavaScript.
 

@@ -5,10 +5,10 @@
     "url": "https://github.com/considerate/causality.git"
   },
   "publishConfig": {
-      "tag": "next"
+      "tag": "latest"
   },
   "release": {
-      "branch": "master"
+      "branch": "production"
   },
   "description": "Composable Side-Effects for JavaScript",
   "main": "dist/index.js",
